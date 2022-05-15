@@ -1,0 +1,29 @@
+{
+  "name": "repodepot",
+  "version": "0.0.1",
+  "description": "this is a web version of reversi",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anbynumuci/repodepot.git"
+  },
+  "keywords": [
+    "reversi",
+    "lexsi",
+    "bynum"
+  ],
+  "author": "Lexsi Bynum",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anbynumuci/repodepot/issues"
+  },
+  "homepage": "https://github.com/anbynumuci/repodepot#readme",
+  "dependencies": {
+    "node-static": "^0.7.11",
+    "socket.io": "^4.5.0"
+  }
+}
