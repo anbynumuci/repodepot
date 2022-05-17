@@ -20,6 +20,14 @@
         </div>
         <div class="row m-3">
           <div class="col">
+            <div class="row align-items-center justify-content-center m-3">
+              <div class="col-8">
+                <div class="input-group">
+                    <input type="text" class="form-control text-nowrap" id="chatMessage" placeholder="enter your message to send to the chat room" aria-label="Enter your message to send to the chat room "/>
+                    <button type="submit" class="btn btn-primary text-nowrap" id="chatButton" onclick="sendChatMessage()">Send</button>
+                  </div>
+                </div>
+              </div>
             <h4>Messages</h4>
             <div id="messages">
             </div>
