@@ -25,3 +25,25 @@ let app = http.createServer(
 	}).listen(port);
 
 console.log('the server is running');
+
+
+//set up websocket file server
+const{ Server } = require("socket.io");
+const io = new Server(app);
+
+io.on('connection', (socket) => {
+	function serverLog (...messages){
+		io.emit('log',['**** Message from the sertver:\n']);
+		messages.forEach((item) => {
+			io.emit('log',['****\t'+item]);
+			console.log(item);
+		});
+	}
+
+serverLog('a page connected to the server: '+socket.id);
+
+socket.on('disconnect', () => {
+	serverLog('a page disconnected from the server: '+socket.id);
+
+});
+})
