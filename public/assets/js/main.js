@@ -88,11 +88,11 @@ socket.on('invite_response', (payload) => {
     console.log(payload.message);
     return;
   }
-  let newNode = makeInvitedButton();
+  let newNode = makeInvitedButton(payload.socket_id);
   $('.socket_'+payload.socket_id+' button').replaceWith(newNode);
-});
+})
 
-socket.on('invited_response', (payload) => {
+socket.on('invited', (payload) => {
   if ((typeof payload == 'undefined') || (payload === null)){
     console.log('Server did not send a payload');
     return;
@@ -101,10 +101,11 @@ socket.on('invited_response', (payload) => {
     console.log(payload.message);
     return;
   }
-  let newNode = makePlayButton();
+  let newNode = makePlayButton(payload.socket_id);
   $('.socket_'+payload.socket_id+' button').replaceWith(newNode);
-});
+})
 
+//uninvited
 socket.on('uninvited', (payload) => {
   if ((typeof payload == 'undefined') || (payload === null)) {
       console.log('server did not send a payload');
