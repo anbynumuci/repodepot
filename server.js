@@ -32,6 +32,7 @@ let app = http.createServer(
 	// set up registry of player info
 	let players = [];
 	const{ Server } = require("socket.io");
+const { fileURLToPath } = require('url');
 	const io = new Server(app);
 
 	io.on('connection', (socket) => {
@@ -442,7 +443,7 @@ let app = http.createServer(
 				response = {};
 				response.result = 'fail';
 				response.message = 'play_taken came from an unregistered username';
-				socket.emit('play_token_response', response);
+				socket.emit('play_token', response);
 				serverLog('play_token command failed', JSON.stringify(response));
 				return;
 			}
@@ -451,7 +452,7 @@ let app = http.createServer(
 				response = {};
 				response.result = 'fail';
 				response.message = 'no valid game associated with the play_token command';
-				socket.emit('play_token_response', response);
+				socket.emit('play_token', response);
 				serverLog('play_token command failed', JSON.stringify(response));
 				return;
 			}
@@ -491,19 +492,48 @@ let app = http.createServer(
 				serverLog('play_token command failed', JSON.stringify(response));
 				return;
 			}
+			if (color !== game.whose_turn){
+				let response = {
+					result: 'fail',
+					message: 'play_token recieved the wrong color'
+				}
+				socket.emit('play_token_response',response);
+				serverLog('play_token command failed', JSON.stringify(response));
+				return;
+			}
+			if(
+				((game.whose_turn === 'white') && (game.player_white.socket != socket.id)) || ((game.whose_turn === 'black') && (game.player_black.socket != socket.id))
+			){
+				let response = {
+					result: 'fail',
+					message: 'play_token played by the right color but wrong player',
+				}
+				socket.emit('play_token_response', response);
+				serverLog('play_token command failed', JSON.stringify(response));
+				return;
+			}
+
 			let response = {
 				result: 'success'
 			}
 			socket.emit('play_token_response', response);
+
 			/*execute */
 			if(color === 'white') {
 				game.board[row][column] = 'w';
+				flip_tokens('w',row,column,game.board);
 				game.whose_turn = 'black';
+				game.legal_moves = calculate_legal_moves('b', game.board);
 			}
 			else if(color ==='black'){
 				game.board[row][column] = 'b';
+				flip_tokens('b',row,column,game.board);
 				game.whose_turn = 'white';
+				game.legal_moves = calculate_legal_moves('w', game.board);
 			}
+
+			let d = new Date();
+			game.last_move_time = d.getTime();
 			send_game_update(socket, game_id, 'played a token');
 		});
 	});
@@ -523,9 +553,72 @@ let app = http.createServer(
 		var d = new Date();
 		new_game.last_move_time = d.getTime();
 
-		new_game.whose_turn = 'white';
+		new_game.whose_turn = 'black';
 		new_game.board = [
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
+			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
+			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
+			[' ', ' ', ' ', 'w','b', ' ', ' ', ' '],
+			[' ', ' ', ' ', 'b','w', ' ', ' ', ' '],
+			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
+			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
+			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' ']
+		];
+		new_game.legal_moves = calculate_legal_moves('b', new_game.board);
+		
+		return new_game;
+	}
+	function check_line_match(color,dr,dc,r,c,board){
+		if(board[r][c] === color){
+			return true;
+		}
+		if(board[r][c] === ' '){
+			return false;
+		}
+		if ((r + dr <0) || (r+dr > 7)){
+			return false;
+		}
+		if ((c + dc <0) || (c+dc >7)){
+			return false; 
+		}
+		return(check_line_match(color,dr,dc,r+dr,c+dc,board));
+	}
+	
+	function adjacent_support(who,dr,dc,r,c,board){
+		let other;
+		if (who === 'b'){
+			other = 'w';
+		}
+		else if (who === 'w'){
+			other = 'b';
+		}
+		else{
+			log("Problem:"+who);
+			return false;
+		}
+		if ((r+dr < 0)||(r + dr >7)){
+			return false;
+		}
+		if ((c+dc < 0)||(c + dc >7)){
+			return false;
+		}
+		if(board[r+dr][c+dc] !== other){
+			return false;
+		}
+		if ((r + dr + dr <0) || (r + dr + dr >7)){
+			return false;
+		}
+		if ((c + dc + dc <0) || (c + dc + dc >7)){
+			return false;
+		}
+
+		return check_line_match(who,dr,dc,r+dr+dr,c+dc+dc,board);
+		
+	}
+
+	function calculate_legal_moves(who,board){
+		let legal_moves = [
+			[' ', ' ', ' ', ' ',' ', ' ', ' ',	 ' '],
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
@@ -534,8 +627,62 @@ let app = http.createServer(
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' '],
 			[' ', ' ', ' ', ' ',' ', ' ', ' ', ' ']
 		];
-	return new_game;
+		for(let row=0; row <8; row++){
+			for(let column=0; column <8; column++){
+				if(board[row][column] === ' '){
+					nw = adjacent_support(who,-1,1,row,column,board);
+					ne = adjacent_support(who,-1,1,row,column,board);
+					nn = adjacent_support(who,-1,0,row,column,board);
+					ss = adjacent_support(who,1,0,row,column,board);
+					sw = adjacent_support(who,1,-1,row,column,board);
+					se = adjacent_support(who,1,1,row,column,board);
+					ww = adjacent_support(who,0,-1,row,column,board);
+					ee = adjacent_support(who,0,1,row,column,board);
+					if(nw||nn||ne||ww||ee||sw||ss||se){
+						legal_moves[row][column] = who;
+					}
+				}
+			}
+		}
+		return legal_moves;
 	}
+
+	function flip_line(who,dr,dc,r,c,board){
+		if ((r+dr < 0)||(r + dr >7)){
+			return false;
+		}
+		if ((c+dc < 0)||(c + dc >7)){
+			return false;
+		}
+		if (board[r+dr][c+dc] === ' '){
+			return false;
+		}
+		if (board[r+dr][c+dc] === who){
+			return true;
+		}
+		else {
+			if(flip_line(who,dr,dc,r+dr,c+dc,board)){
+				board[r+dr][c+dc] = who;
+				return true;
+			}
+			else{
+				return false; 
+			}
+		}
+		
+	}
+	function flip_tokens(who, row, column, board){
+		flip_line(who,-1,-1,row,column,board);
+		flip_line(who,-1,1,row,column,board);
+		flip_line(who,-1,0,row,column,board);
+		flip_line(who,1,0,row,column,board);
+		flip_line(who,1,-1,row,column,board);
+		flip_line(who,1,1,row,column,board);
+		flip_line(who,0,-1,row,column,board);
+		flip_line(who,0,1,row,column,board);
+	}
+
+
 	function send_game_update(socket, game_id, message){
 		//check for game with game_id
 		if ((typeof games[game_id] == 'undefined') || (games[game_id] === null)){
@@ -602,20 +749,36 @@ let app = http.createServer(
 			io.of('/').to(game_id).emit('game_update', payload);
 		})
 		//check game over
-		let count = 0;
+		let legal_moves= 0;
+		let whitesum = 0;
+		let blacksum = 0;
+
 		for (let row = 0; row<8; row++){
 			for(let column=0; column<8; column++){
 				if(games[game_id].board[row][column] != ' '){
-					count++;
+					legal_moves++;
+				}
+				if(games[game_id].board[row][column] != 'w'){
+					whitesum++;
+				}
+				if(games[game_id].board[row][column] != 'b'){
+					blacksum++;
 				}
 			}
 		}
-		if(count ===64){
+		if(legal_moves === 0){
+			let winner = "Tie Game";
+			if (whitesum > blacksum){
+				winner = 'white';
+			}
+			if (whitesum <blacksum){
+				winner ="black";
+			}
 			let payload={
 				result: 'success',
 				game_id: game_id,
 				game: games[game_id],
-				who_won: 'everyone'
+				who_won: winner
 			}
 			io.in(game_id).emit('game_over', payload);
 
